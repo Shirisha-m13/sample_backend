@@ -1,11 +1,9 @@
 const express = require("express");
-const http = require("http");
 const { randomUUID } = require("crypto");
 require("dotenv").config();
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
-const { Server } = require("socket.io");
 const {
   getAllFeedback,
   insertFeedback,
@@ -32,14 +30,6 @@ app.use(
     credentials: true,
   })
 );
-
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: CORS_ORIGIN,
-    credentials: true,
-  },
-});
 
 app.get("/api/health", async (_req, res) => {
   try {
@@ -81,19 +71,9 @@ app.post("/api/feedback", async (req, res) => {
 
   try {
     const savedFeedback = await insertFeedback(feedback);
-    io.emit("feedback:new", savedFeedback);
     return res.status(201).json(savedFeedback);
   } catch (error) {
     return res.status(500).json({ error: "Failed to save feedback" });
-  }
-});
-
-io.on("connection", async (socket) => {
-  try {
-    const feedback = await getAllFeedback();
-    socket.emit("feedback:init", feedback);
-  } catch (_error) {
-    socket.emit("feedback:error", { error: "Failed to load feedback" });
   }
 });
 
@@ -101,7 +81,7 @@ async function startServer() {
   try {
     await checkDatabaseHealth();
     await checkSchemaReady();
-    server.listen(PORT, () => {
+    app.listen(PORT, () => {
       console.log(`Backend listening on port ${PORT}`);
     });
   } catch (error) {
